@@ -7,6 +7,16 @@
     "api/ebay-webhook.js": {
       "memory": 1024,
       "maxDuration": 10
+    },
+    "api/monitor-sellers.js": {
+      "memory": 1024,
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/monitor-sellers",
+      "schedule": "0 */2 * * *"
+    }
+  ]
 }
