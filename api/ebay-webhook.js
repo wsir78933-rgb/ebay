@@ -24,7 +24,7 @@ import { createHash } from 'crypto';
 
 const EBAY_VERIFICATION_TOKEN = process.env.EBAY_VERIFICATION_TOKEN;
 const DATABASE_URL = process.env.DATABASE_URL;
-const ENDPOINT_URL = process.env.ENDPOINT_URL || 'https://ebaywebhook-one.vercel.app/api/ebay-webhook';
+const ENDPOINT_URL = process.env.ENDPOINT_URL || 'https://ebay-webhook.vercel.app/api/ebay-webhook';
 
 // ============================================================================
 // 主处理函数（Vercel Serverless Function 入口点）
