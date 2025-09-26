@@ -104,21 +104,23 @@ export default async function handler(req, res) {
       });
     }
 
-    // 方案1：验证请求头中的 Verification Token
+    // 方案1：验证请求头中的 Verification Token（可选验证）
     const incomingToken = req.headers['x-ebay-verification-token'];
 
     if (!incomingToken || incomingToken !== EBAY_VERIFICATION_TOKEN) {
-      console.warn('[eBay Webhook] 验证失败：Token 不匹配', {
+      console.warn('[eBay Webhook] 注意：POST 请求未包含有效的 x-ebay-verification-token 头', {
         received: incomingToken ? '***' : 'null',
+        allHeaders: Object.keys(req.headers),
         timestamp: new Date().toISOString()
       });
 
-      return res.status(401).json({
-        error: 'Unauthorized: Invalid verification token'
-      });
+      // 注意：对于 Marketplace Account Deletion 通知，
+      // eBay 可能不会在 POST 请求中发送 x-ebay-verification-token
+      // 端点验证已通过 GET 请求的 challenge-response 完成
+      // 这里我们接受没有 token 的请求，但会记录警告
+    } else {
+      console.log('[eBay Webhook] 验证成功：请求包含有效的验证令牌');
     }
-
-    console.log('[eBay Webhook] 验证成功：请求来自 eBay 平台');
 
     // ========================================================================
     // 第四步：解析并验证请求体
