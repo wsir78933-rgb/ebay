@@ -1,0 +1,26 @@
+{
+  "name": "ebay-webhook-handler",
+  "version": "1.0.0",
+  "description": "eBay用户账户删除通知Webhook处理器 - 符合GDPR要求",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "ebay",
+    "webhook",
+    "gdpr",
+    "user-deletion",
+    "vercel",
+    "serverless"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "vercel": "^33.0.0"
+  }
+}
