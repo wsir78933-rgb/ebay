@@ -157,20 +157,51 @@ async function fetchSellersProducts(accessToken, sellers, searchQuery) {
 }
 
 async function getPreviousData() {
-  const { kv } = await import('@vercel/kv');
   try {
-    const data = await kv.get('seller_monitor_data');
-    return data || { timestamp: null, products: [] };
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
+    const { data, error } = await supabase
+      .from('seller_monitor')
+      .select('data')
+      .eq('id', 1)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.log('[Storage] No previous data found');
+        return { timestamp: null, products: [] };
+      }
+      throw error;
+    }
+
+    return data?.data || { timestamp: null, products: [] };
   } catch (error) {
-    console.log('[Storage] No previous data or KV not configured:', error.message);
+    console.log('[Storage] No previous data or Supabase not configured:', error.message);
     return { timestamp: null, products: [] };
   }
 }
 
 async function savePreviousData(currentData) {
-  const { kv } = await import('@vercel/kv');
   try {
-    await kv.set('seller_monitor_data', currentData);
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
+    const { error } = await supabase
+      .from('seller_monitor')
+      .upsert({
+        id: 1,
+        data: currentData,
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) throw error;
     console.log('[Storage] Data saved successfully');
   } catch (error) {
     console.error('[Storage] Failed to save data:', error.message);
