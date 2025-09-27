@@ -12,9 +12,6 @@ export default async function handler(req, res) {
   try {
     const EBAY_CLIENT_ID = process.env.EBAY_PROD_CLIENT_ID;
     const EBAY_CLIENT_SECRET = process.env.EBAY_PROD_CLIENT_SECRET;
-    const GMAIL_USER = process.env.GMAIL_USER;
-    const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
-    const RECIPIENT_EMAIL = process.env.RECIPIENT_EMAIL || '3277193856@qq.com';
 
     if (!EBAY_CLIENT_ID || !EBAY_CLIENT_SECRET) {
       return res.status(500).json({
@@ -43,19 +40,13 @@ export default async function handler(req, res) {
     if (changes.hasChanges) {
       console.log('[Seller Monitor] Changes detected:', changes);
 
-      if (GMAIL_USER && GMAIL_APP_PASSWORD) {
-        const emailSent = await sendEmailNotification(
-          changes,
-          GMAIL_USER,
-          GMAIL_APP_PASSWORD,
-          RECIPIENT_EMAIL
-        );
+      // 使用RUBE MCP智能邮件系统发送通知
+      const emailResult = await sendRubeEmailNotification(changes);
 
-        if (emailSent) {
-          console.log('[Seller Monitor] Email notification sent');
-        }
+      if (emailResult.success) {
+        console.log('[Seller Monitor] RUBE MCP email sent successfully');
       } else {
-        console.log('[Seller Monitor] Gmail credentials not configured, skipping email');
+        console.error('[Seller Monitor] RUBE MCP email failed:', emailResult.error);
       }
     } else {
       console.log('[Seller Monitor] No significant changes detected');
@@ -307,183 +298,55 @@ function detectChanges(previousData, currentData) {
   return changes;
 }
 
-async function sendEmailNotification(changes, gmailUser, gmailPassword, recipient) {
+/**
+ * 使用RUBE MCP发送智能邮件通知
+ */
+async function sendRubeEmailNotification(changes) {
   try {
-    const nodemailer = await import('nodemailer');
+    console.log('[RUBE Email] Sending intelligent email notification...');
 
-    const transporter = nodemailer.default.createTransporter({
-      service: 'gmail',
-      auth: {
-        user: gmailUser,
-        pass: gmailPassword
-      }
+    // 调用RUBE MCP邮件API
+    const rubeEmailUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}/api/rube-email`
+      : '/api/rube-email';
+
+    const response = await fetch(rubeEmailUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        changes,
+        emailType: 'seller_monitor_alert',
+        recipients: ['3277193856@qq.com'],
+        priority: 'normal'
+      })
     });
 
-    const emailContent = generateEmailContent(changes);
+    if (!response.ok) {
+      throw new Error(`RUBE Email API returned ${response.status}: ${response.statusText}`);
+    }
 
-    await transporter.sendMail({
-      from: gmailUser,
-      to: recipient,
-      subject: `🔔 eBay卖家监控警报 - 检测到${changes.priceChanges.length + changes.newListings.length + changes.removedListings.length}项变化`,
-      html: emailContent
-    });
+    const result = await response.json();
 
-    return true;
+    if (result.success) {
+      console.log('[RUBE Email] Email sent via RUBE MCP:', result.sendResult?.message_id);
+      return {
+        success: true,
+        messageId: result.sendResult?.message_id,
+        analytics: result.analysis?.metrics,
+        rubeIntegration: true
+      };
+    } else {
+      throw new Error(result.error || 'RUBE MCP email failed');
+    }
+
   } catch (error) {
-    console.error('[Email] Failed to send notification:', error);
-    return false;
+    console.error('[RUBE Email] Failed to send notification:', error);
+    return {
+      success: false,
+      error: error.message,
+      rubeIntegration: false
+    };
   }
-}
-
-function generateEmailContent(changes) {
-  let html = `
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; }
-        .section { background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin: 15px 0; }
-        .section-title { color: #667eea; font-size: 18px; font-weight: bold; margin-bottom: 10px; }
-        .item { background: white; padding: 10px; margin: 8px 0; border-left: 3px solid #667eea; }
-        .price-up { color: #dc3545; font-weight: bold; }
-        .price-down { color: #28a745; font-weight: bold; }
-        .new-badge { background: #28a745; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; }
-        .removed-badge { background: #dc3545; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; }
-        a { color: #667eea; text-decoration: none; }
-        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>🔔 eBay 卖家监控警报</h1>
-          <p>监控时间: ${new Date().toLocaleString('zh-CN')}</p>
-          <p>监控卖家: cellfc, electronicdea1s</p>
-        </div>
-  `;
-
-  if (changes.priceChanges.length > 0) {
-    html += `
-      <div class="section">
-        <div class="section-title">💰 价格变化 (${changes.priceChanges.length}项)</div>
-    `;
-    for (const change of changes.priceChanges) {
-      const priceClass = change.change > 0 ? 'price-up' : 'price-down';
-      const emoji = change.change > 0 ? '📈' : '📉';
-      html += `
-        <div class="item">
-          <strong>${emoji} ${change.title}</strong><br>
-          <span style="color: #666;">卖家: ${change.seller}</span><br>
-          旧价格: $${change.oldPrice} → 新价格: <span class="${priceClass}">$${change.newPrice}</span><br>
-          变化: <span class="${priceClass}">${change.change > 0 ? '+' : ''}$${change.change.toFixed(2)} (${change.percentChange}%)</span><br>
-          <a href="${change.url}" target="_blank">查看商品</a>
-        </div>
-      `;
-    }
-    html += `</div>`;
-  }
-
-  if (changes.newListings.length > 0) {
-    html += `
-      <div class="section">
-        <div class="section-title">🆕 新增商品 (${changes.newListings.length}项)</div>
-    `;
-    for (const item of changes.newListings) {
-      html += `
-        <div class="item">
-          <span class="new-badge">新品</span>
-          <strong>${item.title}</strong><br>
-          <span style="color: #666;">卖家: ${item.seller}</span><br>
-          价格: <strong>$${item.price}</strong><br>
-          <a href="${item.url}" target="_blank">查看商品</a>
-        </div>
-      `;
-    }
-    html += `</div>`;
-  }
-
-  if (changes.removedListings.length > 0) {
-    html += `
-      <div class="section">
-        <div class="section-title">❌ 下架商品 (${changes.removedListings.length}项)</div>
-    `;
-    for (const item of changes.removedListings) {
-      html += `
-        <div class="item">
-          <span class="removed-badge">已下架</span>
-          <strong>${item.title}</strong><br>
-          <span style="color: #666;">卖家: ${item.seller}</span><br>
-          原价格: $${item.price}
-        </div>
-      `;
-    }
-    html += `</div>`;
-  }
-
-  if (changes.titleChanges.length > 0) {
-    html += `
-      <div class="section">
-        <div class="section-title">✏️ 标题修改 (${changes.titleChanges.length}项)</div>
-    `;
-    for (const change of changes.titleChanges) {
-      html += `
-        <div class="item">
-          <span style="color: #666;">卖家: ${change.seller}</span><br>
-          旧标题: <s>${change.oldTitle}</s><br>
-          新标题: <strong>${change.newTitle}</strong><br>
-          <a href="${change.url}" target="_blank">查看商品</a>
-        </div>
-      `;
-    }
-    html += `</div>`;
-  }
-
-  if (changes.imageChanges.length > 0) {
-    html += `
-      <div class="section">
-        <div class="section-title">🖼️ 图片修改 (${changes.imageChanges.length}项)</div>
-    `;
-    for (const change of changes.imageChanges) {
-      html += `
-        <div class="item">
-          <strong>${change.title}</strong><br>
-          <span style="color: #666;">卖家: ${change.seller}</span><br>
-          图片已更新<br>
-          <a href="${change.url}" target="_blank">查看商品</a>
-        </div>
-      `;
-    }
-    html += `</div>`;
-  }
-
-  if (changes.ratingChanges.length > 0) {
-    html += `
-      <div class="section">
-        <div class="section-title">⭐ 卖家评分变化 (${changes.ratingChanges.length}项)</div>
-    `;
-    for (const change of changes.ratingChanges) {
-      html += `
-        <div class="item">
-          卖家: <strong>${change.seller}</strong><br>
-          旧评分: ${change.oldRating}% → 新评分: <strong>${change.newRating}%</strong><br>
-          变化: ${change.change > 0 ? '+' : ''}${change.change}%
-        </div>
-      `;
-    }
-    html += `</div>`;
-  }
-
-  html += `
-        <div class="footer">
-          🤖 这是一个自动监控警报，由 eBay Seller Monitor 生成<br>
-          📧 监控频率: 每2小时<br>
-          💡 只在检测到变化时发送通知
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return html;
 }

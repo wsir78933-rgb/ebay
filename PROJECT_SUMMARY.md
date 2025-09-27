@@ -14,10 +14,22 @@
   - Token 验证机制
   - 异步数据删除逻辑
 
+- **`api/rube-email.js`** - 🆕 RUBE MCP 智能邮件集成
+  - AI驱动的邮件内容生成
+  - RUBE工具发现和连接管理
+  - 智能邮件发送计划创建
+  - 多平台邮件发送执行
+  - 邮件结果分析和追踪
+
+- **`api/monitor-sellers.js`** - 卖家监控（已升级RUBE集成）
+  - ✅ 价格和商品变化监控
+  - 🚀 RUBE MCP智能邮件通知（替代传统nodemailer）
+  - AI生成个性化警报内容
+
 ### 2. 配置文件
-- **`package.json`** - 项目依赖和脚本配置
+- **`package.json`** - 项目依赖和脚本配置（已移除nodemailer，保留Supabase）
 - **`vercel.json`** - Vercel 部署配置
-- **`.env.example`** - 环境变量模板
+- **`.env.example`** - 环境变量模板（已更新RUBE MCP配置）
 
 ### 3. 文档文件
 - **`README.md`** - 完整的项目说明文档
@@ -62,15 +74,34 @@ https://ebay-webhook-xxxxx.vercel.app/api/ebay-webhook
 4. 添加以下变量：
 
 ```
+# 核心配置
 EBAY_VERIFICATION_TOKEN=your_32_to_80_character_token
-DATABASE_URL=your_database_connection_string
 NODE_ENV=production
+
+# Supabase 数据库配置
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_key
+
+# RUBE MCP 智能邮件配置
+RECIPIENT_EMAIL=your-email@example.com
+EMAIL_MODE=rube_mcp
+
+# eBay API 配置（用于监控功能）
+EBAY_PROD_CLIENT_ID=your_ebay_client_id
+EBAY_PROD_CLIENT_SECRET=your_ebay_client_secret
 ```
 
 **重要**：添加环境变量后需要重新部署：
 ```bash
 vercel --prod
 ```
+
+**新功能**：🚀 RUBE MCP 智能邮件
+- ✅ AI驱动的邮件内容生成
+- ✅ 智能个性化和分析
+- ✅ 多平台邮件服务支持
+- ✅ 自动OAuth认证管理
 
 ### 步骤 3：在 eBay Developer Portal 配置 Webhook
 
