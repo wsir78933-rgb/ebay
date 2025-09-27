@@ -440,7 +440,12 @@ function generateIntelligentEmailContent(changes, contentStrategy) {
   const trackingId = `rube-${Date.now()}`;
   const timestamp = new Date().toLocaleString('zh-CN');
 
-  // 计算变化统计
+  // 检测邮件类型：热门商品 vs 卖家监控
+  if (changes.hotProducts && changes.hotProducts.length > 0) {
+    return generateHotProductsEmailContent(changes, contentStrategy, trackingId, timestamp);
+  }
+
+  // 计算变化统计（原有的卖家监控功能）
   const stats = {
     priceChanges: changes.priceChanges?.length || 0,
     newListings: changes.newListings?.length || 0,
@@ -703,4 +708,189 @@ function generateRecommendations(stats) {
   }
 
   return recommendations.map(rec => `<p>${rec}</p>`).join('');
+}
+
+/**
+ * 生成热门商品邮件内容
+ * 专门为eBay热门商品推送设计的邮件模板
+ */
+function generateHotProductsEmailContent(changes, contentStrategy, trackingId, timestamp) {
+  const hotProducts = changes.hotProducts || [];
+  const productCount = hotProducts.length;
+
+  // 计算总价值
+  const totalValue = hotProducts.reduce((sum, product) => {
+    const price = parseFloat(product.price) || 0;
+    return sum + price;
+  }, 0);
+
+  // 获取类别统计
+  const categories = [...new Set(hotProducts.map(p => p.category))];
+  const topCategory = categories[0] || '未分类';
+
+  // 生成邮件标题
+  const subject = `🔥 eBay热门商品推荐 - ${productCount}款精选商品 (总价值$${totalValue.toFixed(2)})`;
+
+  // 生成产品HTML
+  const productsHTML = hotProducts.map((product, index) => {
+    const priceDisplay = product.price !== 'N/A' ? `$${product.price} ${product.currency || ''}` : '价格面议';
+    const imageTag = product.image ? `<img src="${product.image}" alt="${product.title}" style="width: 100%; max-width: 200px; height: auto; border-radius: 8px;">` : '<div style="width: 200px; height: 150px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #999;">暂无图片</div>';
+
+    return `
+      <div class="product-card">
+        <div class="product-rank">#${product.rank || index + 1}</div>
+        <div class="product-content">
+          <div class="product-image">
+            ${imageTag}
+          </div>
+          <div class="product-details">
+            <h3 class="product-title">${product.title}</h3>
+            <div class="product-meta">
+              <span class="product-price">${priceDisplay}</span>
+              <span class="product-condition">${product.condition || 'N/A'}</span>
+            </div>
+            <div class="product-info">
+              <span class="product-category">📂 ${product.category}</span>
+              <span class="product-seller">👤 ${product.seller}</span>
+            </div>
+            ${product.location ? `<span class="product-location">📍 ${product.location}</span>` : ''}
+            ${product.url ? `<a href="${product.url}" target="_blank" class="product-link">查看详情 →</a>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${subject}</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; background: #f5f5f5; }
+    .container { max-width: 900px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden; }
+
+    .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 50%, #fd79a8 100%); color: white; padding: 40px 30px; text-align: center; position: relative; }
+    .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>'); }
+    .header-content { position: relative; z-index: 1; }
+    .hot-badge { background: rgba(255,255,255,0.2); padding: 8px 20px; border-radius: 25px; display: inline-block; margin-bottom: 15px; font-size: 14px; font-weight: bold; border: 2px solid rgba(255,255,255,0.3); }
+    .header h1 { margin: 0; font-size: 28px; font-weight: 700; }
+    .header-meta { margin-top: 10px; opacity: 0.9; }
+
+    .summary { background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%); padding: 30px; color: #2d3436; }
+    .summary h2 { margin-top: 0; color: #e17055; font-size: 22px; }
+    .summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 20px; margin: 20px 0; }
+    .summary-stat { text-align: center; background: rgba(255,255,255,0.8); padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .summary-stat-number { font-size: 24px; font-weight: bold; color: #e17055; }
+    .summary-stat-label { font-size: 12px; color: #636e72; margin-top: 5px; }
+
+    .products-section { padding: 30px; }
+    .section-title { color: #2d3436; font-size: 24px; font-weight: bold; margin-bottom: 25px; text-align: center; }
+
+    .product-card { background: #fff; border: 2px solid #f1f2f6; border-radius: 16px; margin-bottom: 25px; overflow: hidden; transition: all 0.3s ease; position: relative; }
+    .product-card:hover { border-color: #ff6b6b; box-shadow: 0 8px 25px rgba(255,107,107,0.15); transform: translateY(-2px); }
+
+    .product-rank { position: absolute; top: 15px; left: 15px; background: #ff6b6b; color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; z-index: 2; }
+
+    .product-content { display: flex; align-items: flex-start; padding: 20px; gap: 20px; }
+    .product-image { flex-shrink: 0; }
+    .product-details { flex: 1; }
+
+    .product-title { margin: 0 0 15px 0; font-size: 18px; font-weight: 600; color: #2d3436; line-height: 1.3; }
+    .product-meta { display: flex; gap: 15px; margin-bottom: 12px; }
+    .product-price { background: #00b894; color: white; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; }
+    .product-condition { background: #74b9ff; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; }
+
+    .product-info { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+    .product-category, .product-seller, .product-location { background: #f8f9fa; color: #495057; padding: 4px 10px; border-radius: 15px; font-size: 12px; }
+
+    .product-link { display: inline-block; background: #ff6b6b; color: white; padding: 10px 20px; border-radius: 25px; text-decoration: none; font-weight: 500; margin-top: 10px; transition: all 0.3s ease; }
+    .product-link:hover { background: #ee5a24; transform: translateX(5px); }
+
+    .recommendations { background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%); color: white; padding: 30px; }
+    .recommendations h3 { margin-top: 0; color: white; font-size: 20px; }
+    .recommendations p { margin: 10px 0; }
+
+    .footer { background: #2d3436; color: #b2bec3; padding: 25px; text-align: center; }
+    .footer p { margin: 5px 0; font-size: 14px; }
+    .tracking-info { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 20px 0; font-size: 12px; }
+
+    @media (max-width: 600px) {
+      .product-content { flex-direction: column; }
+      .product-image { align-self: center; }
+      .summary-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-content">
+        <div class="hot-badge">🔥 RUBE MCP AI 热门推荐</div>
+        <h1>eBay 热门商品精选</h1>
+        <div class="header-meta">
+          <p>🕒 推送时间: ${timestamp}</p>
+          <p>🎯 基于AI算法筛选的${productCount}款优质商品</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary">
+      <h2>📊 本期精选概览</h2>
+      <p>我们的AI算法从数千款商品中精心挑选出这${productCount}款热门商品，覆盖${categories.length}个热门类别，总价值超过$${totalValue.toFixed(2)}。</p>
+
+      <div class="summary-stats">
+        <div class="summary-stat">
+          <div class="summary-stat-number">${productCount}</div>
+          <div class="summary-stat-label">精选商品</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-number">${categories.length}</div>
+          <div class="summary-stat-label">商品类别</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-number">$${totalValue.toFixed(0)}</div>
+          <div class="summary-stat-label">总价值</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-number">${topCategory}</div>
+          <div class="summary-stat-label">主要类别</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Products -->
+    <div class="products-section">
+      <div class="section-title">🛍️ 热门商品推荐</div>
+      ${productsHTML}
+    </div>
+
+    <!-- AI Recommendations -->
+    <div class="recommendations">
+      <h3>🤖 AI智能推荐</h3>
+      <p>🎯 基于市场趋势分析，这些商品在近期表现活跃，值得关注</p>
+      <p>💡 建议关注价格变动，把握最佳购买时机</p>
+      <p>📈 ${topCategory}类商品需求旺盛，可重点关注相关产品</p>
+      <p>⚡ 热门商品更新频率较高，建议定期查看最新推荐</p>
+    </div>
+
+    <!-- Tracking Info -->
+    <div class="tracking-info">
+      <strong>📊 推荐详情:</strong><br>
+      推荐策略: ${contentStrategy || 'comprehensive'} | 跟踪ID: ${trackingId} | AI智能化等级: 高级
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>🤖 本推荐由RUBE MCP AI智能推荐系统生成</p>
+      <p>✨ 特性: AI商品筛选 | 实时价格追踪 | 智能分类推荐 | 个性化定制</p>
+      <p>🚀 技术支持: RUBE MCP | 推送时间: ${timestamp}</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
 }
