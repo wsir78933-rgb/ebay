@@ -8,3 +8,6 @@
 # 测试推送 - Sat Sep 27 12:44:31 CST 2025
 # 强制触发Vercel部署 - $(date)
 # 强制触发Vercel部署 - Sat Sep 27 12:47:57 CST 2025
+# URGENT: 强制触发包含Supabase的完整部署 - $(date '+%Y-%m-%d %H:%M:%S')
+# 问题：Vercel webhook未检测到新提交，需手动触发
+# URGENT: 强制触发包含Supabase的完整部署 - Sat Sep 27 12:54:40 CST 2025
