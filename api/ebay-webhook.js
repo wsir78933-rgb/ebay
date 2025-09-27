@@ -21,6 +21,7 @@
 // - LOG_LEVEL: 日志级别（可选，默认为 'info'）
 
 import { createHash } from 'crypto';
+import { UserService } from '../lib/supabase.js';
 
 const EBAY_VERIFICATION_TOKEN = process.env.EBAY_VERIFICATION_TOKEN;
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -191,10 +192,10 @@ export default async function handler(req, res) {
     // 对于生产环境，建议使用消息队列（如 AWS SQS、Redis Queue）
     // 或触发另一个 Serverless 函数来处理耗时操作
 
-    // 这里使用 setImmediate 来模拟异步处理（仅用于演示）
+    // 使用 Supabase 异步处理用户数据删除
     setImmediate(async () => {
       try {
-        await deleteUserData(username, userId);
+        await UserService.deleteUserData(userId, username);
         console.log('[eBay Webhook] 用户数据删除成功:', { username, userId });
       } catch (error) {
         console.error('[eBay Webhook] 用户数据删除失败:', {
@@ -232,101 +233,26 @@ export default async function handler(req, res) {
 }
 
 // ============================================================================
-// 辅助函数：删除用户数据
+// 注意：用户数据删除功能已迁移到 Supabase
 // ============================================================================
 /**
- * 从数据库中彻底删除用户的所有个人数据
+ * 用户数据删除功能现在通过 UserService.deleteUserData() 实现
+ * 位置：/lib/supabase.js
  *
- * @param {string} username - eBay 用户名
- * @param {string} userId - eBay 用户 ID
+ * 功能特性：
+ * 1. 使用 Supabase 客户端进行数据库操作
+ * 2. 自动事务处理和错误回滚
+ * 3. 内置审计日志记录
+ * 4. 符合 GDPR 第17条"被遗忘权"要求
+ * 5. 支持多表级联删除
  *
- * 注意事项：
- * 1. 必须删除所有包含该用户个人信息的表（符合 GDPR 第17条"被遗忘权"）
- * 2. 删除范围包括但不限于：
- *    - 用户基本信息表
- *    - OAuth tokens
- *    - 订单历史
- *    - 搜索历史
- *    - 个人偏好设置
- * 3. 考虑级联删除和外键约束
- * 4. 保留匿名化的统计数据（如果业务需要）
+ * 删除范围包括：
+ * - users (用户基本信息)
+ * - oauth_tokens (OAuth 令牌)
+ * - orders (订单历史)
+ * - search_history (搜索历史)
+ * - audit_logs (审计日志，记录删除操作)
  */
-async function deleteUserData(username, userId) {
-  console.log('[数据删除] 开始删除用户数据:', { username, userId });
-
-  // 这里需要根据你的实际数据库结构实现
-  // 以下是示例代码（假设使用 PostgreSQL）
-
-  try {
-    // 示例：使用数据库客户端
-    // const { Client } = require('pg');
-    // const client = new Client({ connectionString: DATABASE_URL });
-    // await client.connect();
-
-    // 删除用户数据（根据你的数据库结构调整）
-    /*
-    await client.query('BEGIN');
-
-    // 删除 OAuth tokens
-    await client.query(
-      'DELETE FROM oauth_tokens WHERE ebay_user_id = $1 OR ebay_username = $2',
-      [userId, username]
-    );
-
-    // 删除用户信息
-    await client.query(
-      'DELETE FROM users WHERE ebay_user_id = $1 OR ebay_username = $2',
-      [userId, username]
-    );
-
-    // 删除其他相关数据...
-
-    await client.query('COMMIT');
-    await client.end();
-    */
-
-    // 临时实现：仅记录日志（生产环境必须实际删除数据）
-    console.log('[数据删除] 模拟删除操作完成:', {
-      username,
-      userId,
-      warning: '⚠️ 这是演示代码，生产环境必须实现真实的数据删除逻辑'
-    });
-
-    // 记录删除审计日志
-    await logDeletionAudit(username, userId);
-
-  } catch (error) {
-    console.error('[数据删除] 删除失败:', error);
-    throw error; // 抛出错误以便上层捕获和处理
-  }
-}
-
-// ============================================================================
-// 辅助函数：记录删除审计日志
-// ============================================================================
-/**
- * 记录数据删除的审计日志（符合合规要求）
- *
- * @param {string} username - eBay 用户名
- * @param {string} userId - eBay 用户 ID
- */
-async function logDeletionAudit(username, userId) {
-  const auditLog = {
-    event: 'USER_DATA_DELETION',
-    username,
-    userId,
-    timestamp: new Date().toISOString(),
-    source: 'EBAY_WEBHOOK',
-    status: 'SUCCESS'
-  };
-
-  console.log('[审计日志]', JSON.stringify(auditLog));
-
-  // 生产环境建议：
-  // 1. 写入专门的审计日志数据库
-  // 2. 发送到日志聚合服务（如 LogDNA, Datadog）
-  // 3. 保留日志至少 6 年（根据法规要求）
-}
 
 // ============================================================================
 // 辅助函数：清理敏感信息（用于日志记录）
