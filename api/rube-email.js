@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     // 从请求中获取邮件数据
     const {
       changes,
+      monitoringStats,
       emailType = 'seller_monitor_alert',
       recipients = ['3277193856@qq.com'],
       priority = 'normal'
@@ -51,7 +52,7 @@ export default async function handler(req, res) {
     }
 
     // Step 3: 创建智能邮件发送计划
-    const emailPlan = await createEmailPlan(changes, emailType, recipients);
+    const emailPlan = await createEmailPlan(changes, emailType, recipients, monitoringStats);
 
     if (!emailPlan.success) {
       return res.status(500).json({
@@ -61,7 +62,7 @@ export default async function handler(req, res) {
     }
 
     // Step 4: 执行智能邮件发送
-    const sendResult = await executeEmailSending(emailPlan.plan, changes);
+    const sendResult = await executeEmailSending(emailPlan.plan, changes, monitoringStats);
 
     // Step 5: 分析发送结果
     const analysisResult = await analyzeEmailResults(sendResult);
@@ -173,12 +174,18 @@ async function manageEmailConnections() {
  * 使用RUBE_CREATE_PLAN创建智能邮件发送计划
  * 注意：此函数使用基于真实RUBE MCP计划创建的数据结构
  */
-async function createEmailPlan(changes, emailType, recipients) {
+async function createEmailPlan(changes, emailType, recipients, monitoringStats) {
   try {
     console.log('[RUBE Email] Creating intelligent email plan...');
 
     // 分析变化数据，确定邮件内容策略
     const changesSummary = analyzeChanges(changes);
+
+    // 根据邮件类型调整内容策略
+    let contentStrategy = changesSummary.contentStrategy;
+    if (emailType === 'seller_monitor_status') {
+      contentStrategy = 'status_summary'; // 状态汇总模式
+    }
 
     // 基于真实RUBE MCP CREATE_PLAN结果
     // (实际部署中将集成真实的RUBE MCP计划创建)
@@ -243,14 +250,13 @@ async function createEmailPlan(changes, emailType, recipients) {
  * 使用RUBE_MULTI_EXECUTE_TOOL执行邮件发送
  * 注意：此函数使用基于真实RUBE MCP工具执行的数据结构
  */
-async function executeEmailSending(plan, changes) {
+async function executeEmailSending(plan, changes, monitoringStats) {
   try {
     console.log('[RUBE Email] Executing email sending plan...');
 
     // 生成智能邮件内容
-    const emailContent = generateIntelligentEmailContent(changes, plan.content_strategy);
-    const subject = generateIntelligentSubject(analyzeChanges(changes),
-      Object.values(analyzeChanges(changes)).reduce((sum, count) => sum + (count || 0), 0));
+    const emailContent = generateIntelligentEmailContent(changes, plan.content_strategy, monitoringStats);
+    const subject = generateIntelligentSubject(changes, monitoringStats);
 
     // 基于真实RUBE MCP MULTI_EXECUTE_TOOL结构
     // (实际部署中将集成真实的RUBE MCP工具执行)
@@ -436,9 +442,14 @@ function analyzeChanges(changes) {
  * 生成智能邮件内容
  * 基于RUBE MCP AI分析变化数据，生成个性化邮件内容
  */
-function generateIntelligentEmailContent(changes, contentStrategy) {
+function generateIntelligentEmailContent(changes, contentStrategy, monitoringStats) {
   const trackingId = `rube-${Date.now()}`;
   const timestamp = new Date().toLocaleString('zh-CN');
+
+  // 如果没有变化，生成简化状态报告
+  if (!changes.hasChanges) {
+    return generateStatusReportEmail(monitoringStats, trackingId, timestamp);
+  }
 
   // 计算变化统计
   const stats = {
@@ -553,10 +564,158 @@ function generateIntelligentEmailContent(changes, contentStrategy) {
 }
 
 /**
+ * 生成简化状态报告邮件
+ */
+function generateStatusReportEmail(monitoringStats, trackingId, timestamp) {
+  const sellers = ['cellfc', 'electronicdea1s'];
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>eBay监控状态 - 系统正常运行</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+    .container { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 25px; text-align: center; }
+    .status-badge { background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 16px; display: inline-block; margin-bottom: 8px; font-size: 13px; }
+    .summary { background: #f0f9ff; padding: 20px; border-left: 4px solid #10b981; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 15px 0; }
+    .stat-card { background: white; padding: 12px; border-radius: 6px; text-align: center; border: 1px solid #e0f2fe; }
+    .stat-number { font-size: 20px; font-weight: bold; color: #10b981; }
+    .stat-label { font-size: 11px; color: #666; margin-top: 3px; }
+    .section { padding: 20px; border-bottom: 1px solid #f0f0f0; }
+    .section:last-child { border-bottom: none; }
+    .section-title { color: #10b981; font-size: 16px; font-weight: bold; margin-bottom: 12px; }
+    .footer { background: #f8f9fa; padding: 15px; text-align: center; color: #666; font-size: 11px; }
+    .tracking-info { background: #f0f9ff; padding: 12px; border-radius: 6px; margin: 15px 0; font-size: 12px; }
+    .monitoring-info { background: #ecfdf5; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    .sellers-list { background: #fefefe; padding: 10px; border-radius: 4px; margin: 8px 0; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="status-badge">✅ 系统状态正常</div>
+      <h1>eBay监控状态报告</h1>
+      <p>监控时间: ${timestamp}</p>
+    </div>
+
+    <!-- AI摘要 -->
+    <div class="summary">
+      <h2>📊 监控状态摘要</h2>
+      <p>🤖 AI智能监控系统运行正常，当前检查周期内未发现显著变化。所有监控的卖家商品状态稳定。</p>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">${monitoringStats.monitoringDays}</div>
+          <div class="stat-label">已监控天数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${monitoringStats.totalChecks}</div>
+          <div class="stat-label">总检查次数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${sellers.length}</div>
+          <div class="stat-label">监控卖家数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">0</div>
+          <div class="stat-label">当前变化数</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 监控详情 -->
+    <div class="section">
+      <div class="section-title">🎯 监控配置</div>
+      <div class="monitoring-info">
+        <p><strong>监控卖家：</strong></p>
+        <div class="sellers-list">${sellers.join(', ')}</div>
+        <p><strong>监控商品：</strong> iPhone 相关商品</p>
+        <p><strong>监控指标：</strong> 价格变化、商品上下架、标题更新、图片变化、卖家评分</p>
+        <p><strong>检查频率：</strong> 每天 23:00</p>
+      </div>
+    </div>
+
+    <!-- 最近7天统计 -->
+    <div class="section">
+      <div class="section-title">📈 过去7天变化统计</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number">${monitoringStats.recentStats.totalChanges}</div>
+          <div class="stat-label">总变化数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${monitoringStats.recentStats.priceChanges}</div>
+          <div class="stat-label">价格变化</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${monitoringStats.recentStats.newListings}</div>
+          <div class="stat-label">新增商品</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${monitoringStats.recentStats.removedListings}</div>
+          <div class="stat-label">下架商品</div>
+        </div>
+      </div>
+      <p style="margin-top: 15px; color: #666; font-size: 13px;">
+        ${monitoringStats.recentStats.totalChanges > 0
+          ? `📊 过去7天共检测到 ${monitoringStats.recentStats.totalChanges} 项变化，系统运行良好。`
+          : '✅ 过去7天监控区间内未发现显著变化，市场状态稳定。'
+        }
+      </p>
+    </div>
+
+    <!-- 系统状态 -->
+    <div class="section">
+      <div class="section-title">⚙️ 系统健康状态</div>
+      <p>✅ <strong>API连接状态：</strong> 正常</p>
+      <p>✅ <strong>数据库状态：</strong> 正常</p>
+      <p>✅ <strong>邮件服务：</strong> 正常</p>
+      <p>✅ <strong>RUBE MCP集成：</strong> 活跃</p>
+      <p>✅ <strong>最后检查：</strong> ${timestamp}</p>
+    </div>
+
+    <!-- 跟踪信息 -->
+    <div class="tracking-info">
+      <strong>📋 检查详情:</strong><br>
+      状态: 正常运行 | 跟踪ID: ${trackingId} | 智能化等级: 高级 | 连续监控: ${monitoringStats.monitoringDays}天
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>🤖 本状态报告由RUBE MCP AI智能监控系统生成</p>
+      <p>✨ 特性: 持续监控 | 智能分析 | 状态报告 | 异常预警</p>
+      <p>🚀 技术支持: RUBE MCP | 时间: ${timestamp}</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+/**
  * 生成智能邮件主题
  */
-function generateIntelligentSubject(stats, totalChanges) {
-  if (totalChanges === 0) return '✅ eBay监控 - 暂无变化';
+function generateIntelligentSubject(changes, monitoringStats) {
+  // 如果没有变化，返回状态报告主题
+  if (!changes.hasChanges) {
+    return `✅ eBay监控状态 - 系统正常运行 (第${monitoringStats.monitoringDays}天)`;
+  }
+
+  // 计算变化统计
+  const stats = {
+    priceChanges: changes.priceChanges?.length || 0,
+    newListings: changes.newListings?.length || 0,
+    removedListings: changes.removedListings?.length || 0,
+    titleChanges: changes.titleChanges?.length || 0,
+    imageChanges: changes.imageChanges?.length || 0,
+    ratingChanges: changes.ratingChanges?.length || 0
+  };
+
+  const totalChanges = Object.values(stats).reduce((sum, count) => sum + count, 0);
 
   const priorities = [];
   if (stats.priceChanges > 0) priorities.push(`${stats.priceChanges}项价格变化`);

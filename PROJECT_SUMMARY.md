@@ -2,7 +2,7 @@
 
 ## 📁 项目位置
 ```
-/home/wcp/项目集合/自动化测试/src/ebay_webhook/
+/home/wcp/项目集合/电商/src/ebay_webhook/
 ```
 
 ## 📋 已创建的文件
@@ -47,7 +47,7 @@
 
 ```bash
 # 进入项目目录
-cd /home/wcp/项目集合/自动化测试/src/ebay_webhook
+cd /home/wcp/项目集合/电商/src/ebay_webhook
 
 # 执行部署（会提示登录，在浏览器中完成授权）
 vercel login
