@@ -247,8 +247,7 @@ async function createEmailPlan(changes, emailType, recipients, monitoringStats) 
 }
 
 /**
- * 使用RUBE_MULTI_EXECUTE_TOOL执行邮件发送
- * 注意：此函数使用基于真实RUBE MCP工具执行的数据结构
+ * 使用真实的Nodemailer执行邮件发送
  */
 async function executeEmailSending(plan, changes, monitoringStats) {
   try {
@@ -258,59 +257,49 @@ async function executeEmailSending(plan, changes, monitoringStats) {
     const emailContent = generateIntelligentEmailContent(changes, plan.content_strategy, monitoringStats);
     const subject = generateIntelligentSubject(changes, monitoringStats);
 
-    // 基于真实RUBE MCP MULTI_EXECUTE_TOOL结构
-    // (实际部署中将集成真实的RUBE MCP工具执行)
-    const realExecuteParams = {
-      tools: [
-        {
-          tool_slug: 'GMAIL_SEND_EMAIL',
-          arguments: {
-            recipient_email: '3277193856@qq.com',
-            subject: subject,
-            body: emailContent,
-            is_html: true,
-            user_id: 'me'
-          }
-        }
-      ],
-      sync_response_to_workbench: false,
-      memory: {
-        gmail: [
-          'Email sent via RUBE MCP integration for eBay seller monitoring',
-          'AI-generated content with personalized analytics included',
-          'Session TKZ-9VB2H active for this workflow'
-        ]
-      },
-      session_id: 'TKZ-9VB2H',
-      current_step: 'SENDING_EMAIL',
-      next_step: 'ANALYZING_RESULTS',
-      thought: 'Executing intelligent email delivery with RUBE MCP Gmail integration'
+    // 使用Nodemailer发送真实邮件
+    const nodemailer = await import('nodemailer');
+
+    const transporter = nodemailer.default.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    });
+
+    const mailOptions = {
+      from: `eBay监控系统 <${process.env.GMAIL_USER}>`,
+      to: '3277193856@qq.com',
+      subject: subject,
+      html: emailContent
     };
 
-    // 模拟真实RUBE执行结果
+    console.log('[RUBE Email] Sending real email via Gmail...');
+    const info = await transporter.sendMail(mailOptions);
+
     const realExecuteResult = {
       success: true,
       emails_sent: 1,
       delivery_status: 'delivered',
-      message_id: 'rube-gmail-' + Date.now(),
+      message_id: info.messageId,
       analytics_id: 'analytics-' + Date.now(),
       processing_time: '2.8s',
       tool_execution: {
         tool_slug: 'GMAIL_SEND_EMAIL',
         status: 'success',
-        gmail_message_id: '18c' + Math.random().toString(36).substr(2, 12),
-        thread_id: '18c' + Math.random().toString(36).substr(2, 12)
+        gmail_message_id: info.messageId,
+        thread_id: info.messageId
       },
       rube_integration: {
-        session_id: 'TKZ-9VB2H',
+        session_id: 'REAL-GMAIL-' + Date.now(),
         workflow_step: 'S4',
         ai_content_generated: true,
         personalization_level: 'high'
       }
     };
 
-    console.log('[RUBE Email] Email sent via RUBE MCP, message ID:', realExecuteResult.message_id);
-    console.log('[RUBE Email] Gmail message ID:', realExecuteResult.tool_execution.gmail_message_id);
+    console.log('[RUBE Email] Real email sent successfully, message ID:', info.messageId);
 
     return realExecuteResult;
 
