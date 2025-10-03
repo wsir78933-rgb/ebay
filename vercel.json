@@ -16,7 +16,7 @@
   "crons": [
     {
       "path": "/api/monitor-sellers",
-      "schedule": "0 23 * * *"
+      "schedule": "0 15 * * *"
     }
   ]
 }
