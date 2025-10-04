@@ -260,7 +260,7 @@ async function executeEmailSending(plan, changes, monitoringStats) {
     // 使用Nodemailer发送真实邮件
     const nodemailer = await import('nodemailer');
 
-    const transporter = nodemailer.default.createTransporter({
+    const transporter = nodemailer.createTransporter({
       service: 'gmail',
       auth: {
         user: process.env.GMAIL_USER,
