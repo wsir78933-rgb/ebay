@@ -3,6 +3,8 @@
  * 用于替代传统的nodemailer，提供AI驱动的邮件自动化功能
  */
 
+import nodemailer from 'nodemailer';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -258,8 +260,6 @@ async function executeEmailSending(plan, changes, monitoringStats) {
     const subject = generateIntelligentSubject(changes, monitoringStats);
 
     // 使用Nodemailer发送真实邮件
-    const nodemailer = await import('nodemailer');
-
     const transporter = nodemailer.createTransporter({
       service: 'gmail',
       auth: {
