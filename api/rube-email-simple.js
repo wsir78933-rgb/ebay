@@ -199,13 +199,45 @@ function generateAlertEmail(changes, trackingId, timestamp) {
 
   let detailsHtml = '';
 
+  // 价格变化
+  if (stats.priceChanges > 0) {
+    detailsHtml += `<h3>💰 价格变化 (${stats.priceChanges}项)</h3>`;
+    changes.priceChanges.forEach(item => {
+      const priceDirection = item.change > 0 ? '📈' : '📉';
+      const priceColor = item.change > 0 ? '#ef4444' : '#10b981';
+      detailsHtml += `
+        <div style="background: #fef3c7; padding: 12px; margin: 8px 0; border-radius: 6px; border-left: 3px solid #f59e0b;">
+          <strong>${item.title}</strong><br>
+          卖家: ${item.seller}<br>
+          ${priceDirection} 价格: <span style="color: #666; text-decoration: line-through;">$${item.oldPrice}</span> →
+          <strong style="color: ${priceColor};">$${item.newPrice}</strong>
+          (${item.change > 0 ? '+' : ''}$${item.change.toFixed(2)} / ${item.percentChange}%)
+          ${item.url ? `<br><a href="${item.url}" style="color: #3b82f6; text-decoration: none;">查看商品 →</a>` : ''}
+        </div>`;
+    });
+  }
+
+  // 新增商品
   if (stats.newListings > 0) {
     detailsHtml += `<h3>🆕 新增商品 (${stats.newListings}项)</h3>`;
-    changes.newListings.slice(0, 5).forEach(item => {
+    changes.newListings.forEach(item => {
       detailsHtml += `
         <div style="background: #f0f9ff; padding: 12px; margin: 8px 0; border-radius: 6px; border-left: 3px solid #3b82f6;">
           <strong>${item.title}</strong><br>
           卖家: ${item.seller} | 价格: <strong>$${item.price}</strong>
+          ${item.url ? `<br><a href="${item.url}" style="color: #3b82f6; text-decoration: none;">查看商品 →</a>` : ''}
+        </div>`;
+    });
+  }
+
+  // 下架商品
+  if (stats.removedListings > 0) {
+    detailsHtml += `<h3>📦 下架商品 (${stats.removedListings}项)</h3>`;
+    changes.removedListings.forEach(item => {
+      detailsHtml += `
+        <div style="background: #fee2e2; padding: 12px; margin: 8px 0; border-radius: 6px; border-left: 3px solid #ef4444;">
+          <strong>${item.title}</strong><br>
+          卖家: ${item.seller} | 原价格: $${item.price}
         </div>`;
     });
   }
