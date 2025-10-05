@@ -450,8 +450,8 @@ async function sendRubeEmailNotification(changes, monitoringStats) {
   try {
     console.log('[RUBE Email] Sending intelligent email notification...');
 
-    // 调用RUBE MCP邮件API - 使用生产环境固定URL
-    const rubeEmailUrl = 'https://ebaywebhook-one.vercel.app/api/rube-email';
+    // 调用简化版邮件API - 使用生产环境固定URL
+    const rubeEmailUrl = 'https://ebaywebhook-one.vercel.app/api/rube-email-simple';
 
     const response = await fetch(rubeEmailUrl, {
       method: 'POST',
