@@ -1,10 +1,11 @@
 # CLAUDE.md - eBay Webhook 监控项目
 
-> **文档版本**: 1.0
-> **最后更新**: 2025-10-04
+> **文档版本**: 1.1
+> **最后更新**: 2025-10-05
 > **项目**: eBay Webhook + 卖家监控系统
 > **部署**: Vercel Serverless Functions
 > **特性**: 定时监控、智能邮件、Supabase存储
+> **状态**: ✅ 邮件系统已修复并正常运行
 
 ---
 
@@ -29,17 +30,18 @@
 
 ```
 ebay_webhook/
-├── api/                    # Vercel Serverless Functions
-│   ├── ebay-webhook.js     # Webhook 接收端点
-│   ├── monitor-sellers.js  # 卖家监控任务
-│   ├── rube-email.js       # RUBE MCP 邮件系统
-│   └── search-products.js  # eBay 商品搜索
-├── lib/                    # 共享库
-│   └── supabase.js         # Supabase 客户端
-├── docs/                   # 文档
-├── vercel.json            # Vercel 配置
-├── package.json           # 依赖管理
-└── CLAUDE.md              # 本文件
+├── api/                         # Vercel Serverless Functions
+│   ├── ebay-webhook.js          # Webhook 接收端点
+│   ├── monitor-sellers.js       # 卖家监控任务 (调用 rube-email-simple.js)
+│   ├── rube-email-simple.js     # ⭐ 实际使用的邮件系统 (已修复)
+│   ├── rube-email.js            # RUBE MCP 完整版邮件系统
+│   └── search-products.js       # eBay 商品搜索
+├── lib/                         # 共享库
+│   └── supabase.js              # Supabase 客户端
+├── docs/                        # 文档
+├── vercel.json                  # Vercel 配置
+├── package.json                 # 依赖管理
+└── CLAUDE.md                    # 本文件
 ```
 
 ---
@@ -251,16 +253,35 @@ git config --global core.sshCommand "'/mnt/c/Windows/System32/OpenSSH/ssh.exe'"
 
 ## 🔧 故障排查
 
-### 问题 1: 邮件未收到
+### 问题 1: 邮件未收到 ✅ 已解决
 
-**检查清单**:
-- [ ] Vercel 环境变量是否配置完整
+**问题根因** (2025-10-05发现并修复):
+- ❌ **错误代码**: `nodemailer.createTransporter()`
+- ✅ **正确代码**: `nodemailer.createTransport()`
+- 📁 **影响文件**:
+  - `api/rube-email-simple.js:61` (主要问题，已修复)
+  - `api/rube-email.js:269` (已修复)
+
+**修复过程**:
+1. 发现 `monitor-sellers.js` 调用的是 `rube-email-simple.js`，而非 `rube-email.js`
+2. 两个文件都存在同样的拼写错误（多了 `er`）
+3. 修复后邮件系统正常工作
+
+**验证方法**:
+```bash
+# 触发监控任务
+powershell.exe -Command "Invoke-WebRequest -Uri 'https://ebaywebhook-one.vercel.app/api/monitor-sellers'"
+
+# 检查QQ邮箱 3277193856@qq.com
+# 应收到主题为: 📊 标准 eBay监控警报 的邮件
+```
+
+**检查清单** (如果仍未收到):
+- [ ] Vercel 环境变量是否配置完整（GMAIL_USER, GMAIL_APP_PASSWORD）
 - [ ] Gmail 应用专用密码是否有效
 - [ ] QQ 邮箱垃圾邮件文件夹
-- [ ] Vercel 日志中是否有错误
-- [ ] Cron Job 是否 Active
-
-**详细排查**: `TROUBLESHOOTING.md`
+- [ ] 等待5-10分钟（Gmail→QQ传输延迟）
+- [ ] 登录 wsir78933@gmail.com 查看"已发送"文件夹
 
 ### 问题 2: API 无法访问 (WSL2)
 
@@ -302,6 +323,10 @@ powershell.exe -Command "Invoke-WebRequest -Uri 'https://your-url'"
 - [x] Vercel Cron Job 定时执行
 - [x] 环境变量配置完整
 - [x] WSL2 网络问题解决方案
+- [x] **邮件发送功能修复** (2025-10-05)
+  - 修复 `createTransporter` → `createTransport` 拼写错误
+  - 修复文件: `rube-email-simple.js`, `rube-email.js`
+  - 邮件系统现已正常运行
 
 ### 📝 待改进
 - [ ] WSL2 原生网络支持 (需升级系统)
@@ -311,6 +336,23 @@ powershell.exe -Command "Invoke-WebRequest -Uri 'https://your-url'"
 
 ---
 
-**最后更新**: 2025-10-04 23:30
+## 🔄 更新日志
+
+### 2025-10-05 17:45 - 邮件系统关键修复
+- 🐛 **修复**: `nodemailer.createTransporter` → `createTransport`
+- 📁 **文件**: `api/rube-email-simple.js:61`, `api/rube-email.js:269`
+- 🔍 **发现**: `monitor-sellers.js` 实际调用 `rube-email-simple.js`
+- ✅ **状态**: 邮件系统恢复正常，功能验证通过
+- 📧 **测试**: 成功发送到 3277193856@qq.com
+
+### 2025-10-04 23:30 - 初始文档
+- 📝 创建完整的项目文档
+- 🔐 环境变量配置说明
+- ⏰ Cron Job 设置指南
+- 🐛 WSL2 网络问题解决方案
+
+---
+
+**最后更新**: 2025-10-05 17:45
 **维护者**: Claude Code
-**项目状态**: ✅ 正常运行
+**项目状态**: ✅ 邮件系统已修复，正常运行
