@@ -255,6 +255,12 @@ async function executeEmailSending(plan, changes, monitoringStats) {
   try {
     console.log('[RUBE Email] Executing email sending plan...');
 
+    // 验证环境变量
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.error('[RUBE Email] Missing Gmail credentials in environment variables');
+      throw new Error('Gmail credentials not configured. Please set GMAIL_USER and GMAIL_APP_PASSWORD in Vercel.');
+    }
+
     // 生成智能邮件内容
     const emailContent = generateIntelligentEmailContent(changes, plan.content_strategy, monitoringStats);
     const subject = generateIntelligentSubject(changes, monitoringStats);
