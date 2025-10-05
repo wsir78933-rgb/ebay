@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     const subject = generateSubject(changes, monitoringStats);
 
     // 配置nodemailer
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: gmailUser,
