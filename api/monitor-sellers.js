@@ -474,10 +474,10 @@ async function sendRubeEmailNotification(changes, monitoringStats) {
     const result = await response.json();
 
     if (result.success) {
-      console.log('[RUBE Email] Email sent via RUBE MCP:', result.sendResult?.message_id);
+      console.log('[RUBE Email] Email sent via RUBE MCP:', result.messageId);
       return {
         success: true,
-        messageId: result.sendResult?.message_id,
+        messageId: result.messageId,
         analytics: result.analysis?.metrics,
         rubeIntegration: true
       };
