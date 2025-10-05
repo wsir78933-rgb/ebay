@@ -266,7 +266,7 @@ async function executeEmailSending(plan, changes, monitoringStats) {
     const subject = generateIntelligentSubject(changes, monitoringStats);
 
     // 使用Nodemailer发送真实邮件
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.GMAIL_USER,
