@@ -9,10 +9,38 @@ export default async function handler(req, res) {
 
   try {
     const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY
-    );
+
+    // 缺省响应（当 Supabase 未配置或查询失败时使用）
+    const buildDefaultResponse = () => {
+      const currentTime = new Date();
+      return {
+        success: true,
+        stats: {
+          monitoringDays: 0,
+          totalChecks: 0,
+          avgResponseTime: '0',
+          accuracy: '0',
+          totalChanges: 0,
+          totalPriceChanges: 0,
+          totalNewListings: 0,
+          totalRemovedListings: 0
+        },
+        achievements: [],
+        history: [],
+        lastUpdate: currentTime.toISOString(),
+        note: 'Supabase 未配置或暂不可用，返回默认统计数据'
+      };
+    };
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn('[Historical Stats] SUPABASE 未配置，返回默认数据');
+      return res.status(200).json(buildDefaultResponse());
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     // 获取监控元数据
     const { data: metaData, error: metaError } = await supabase
@@ -22,7 +50,8 @@ export default async function handler(req, res) {
       .single();
 
     if (metaError && metaError.code !== 'PGRST116') {
-      throw metaError;
+      console.error('[Historical Stats] meta 查询失败:', metaError);
+      return res.status(200).json(buildDefaultResponse());
     }
 
     // 计算监控天数
@@ -44,7 +73,8 @@ export default async function handler(req, res) {
       .limit(30);
 
     if (historyError) {
-      throw historyError;
+      console.error('[Historical Stats] history 查询失败:', historyError);
+      return res.status(200).json(buildDefaultResponse());
     }
 
     // 计算总变化数
@@ -133,10 +163,9 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('[Historical Stats] Error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message,
+    console.error('[Historical Stats] 未捕获错误，返回默认数据:', error);
+    const fallback = {
+      success: true,
       stats: {
         monitoringDays: 0,
         totalChecks: 0,
@@ -148,7 +177,10 @@ export default async function handler(req, res) {
         totalRemovedListings: 0
       },
       achievements: [],
-      history: []
-    });
+      history: [],
+      lastUpdate: new Date().toISOString(),
+      note: '发生错误，已返回默认统计数据'
+    };
+    return res.status(200).json(fallback);
   }
 }
